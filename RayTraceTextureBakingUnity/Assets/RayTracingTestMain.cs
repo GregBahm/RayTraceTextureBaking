@@ -18,11 +18,14 @@ public class RayTracingTestMain : MonoBehaviour
     [SerializeField]
     private RenderTexture renderTex;
 
+    [SerializeField]
+    private Material outputDisplayMat;
+
     private RayTracingAccelerationStructure accelerationStructure;
 
     void Start()
     {
-        renderTex = new RenderTexture(256, 256, 16, RenderTextureFormat.ARGBFloat);
+        renderTex = new RenderTexture(1024, 1024, 1, RenderTextureFormat.ARGBFloat);
         renderTex.enableRandomWrite = true;
         renderTex.Create();
 
@@ -33,11 +36,7 @@ public class RayTracingTestMain : MonoBehaviour
 
         accelerationStructure = new RayTracingAccelerationStructure(settings);
 
-        //accelerationStructure.Update();
         accelerationStructure.Build();
-
-        CommandBuffer commandBuffer = CreateCommandBuffer();
-        theCamera.AddCommandBuffer(CameraEvent.AfterGBuffer, commandBuffer);
     }
 
     private void OnDestroy()
@@ -45,19 +44,13 @@ public class RayTracingTestMain : MonoBehaviour
         renderTex.Release();
     }
 
-    CommandBuffer CreateCommandBuffer()
-    {
-        CommandBuffer commandBuffer = new CommandBuffer();
-        commandBuffer.name = "Greg's Ray Tracer";
-        commandBuffer.SetRayTracingShaderPass(tracingShader, "Test Tracing Pass");
-        commandBuffer.SetRayTracingAccelerationStructure(tracingShader, "_SceneAccelStruct", accelerationStructure);
-        commandBuffer.SetRayTracingTextureParam(tracingShader, "_Output", renderTex);
-        commandBuffer.DispatchRays(tracingShader, "MainRayGenShader", (uint)renderTex.width, (uint)renderTex.height, 1, theCamera);
-        return commandBuffer;
-    }
-
-
     void Update()
     {
+        outputDisplayMat.SetTexture("_UnlitColorMap", renderTex);
+
+        tracingShader.SetAccelerationStructure("_SceneAccelStruct", accelerationStructure);
+        tracingShader.SetFloat("_Zoom", Mathf.Tan(Mathf.Deg2Rad * Camera.main.fieldOfView * 0.5f));
+        tracingShader.SetTexture("_Output", renderTex);
+        tracingShader.Dispatch("MainRayGenShader", renderTex.width, renderTex.height, 1, theCamera);
     }
 }

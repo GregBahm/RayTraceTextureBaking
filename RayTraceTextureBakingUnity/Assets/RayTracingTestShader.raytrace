@@ -4,7 +4,7 @@
 
 // Input
 RaytracingAccelerationStructure _SceneAccelStruct;
-float g_Zoom; //Mathf.Tan(Mathf.Deg2Rad * Camera.main.fieldOfView * 0.5f)
+float _Zoom; //Mathf.Tan(Mathf.Deg2Rad * Camera.main.fieldOfView * 0.5f)
 
 // Output
 RWTexture2D<float4> _Output;
@@ -31,7 +31,7 @@ void MainRayGenShader()
     float2 ndcCoords = frameCoord / float2(launchDim.x - 1, launchDim.y - 1);
 
     ndcCoords = ndcCoords * 2 - float2(1, 1);
-    ndcCoords = ndcCoords * g_Zoom;
+    ndcCoords = ndcCoords * _Zoom;
 
     float aspectRatio = (float)launchDim.x / (float)launchDim.y;
 
@@ -52,5 +52,5 @@ void MainRayGenShader()
     uint missShaderIndex = 0;
     TraceRay(_SceneAccelStruct, 0, 0xFF, 0, 1, missShaderIndex, ray, payload);
 
-    _Output[frameCoord] = float4(1,1,1,1);// payload.color;
+    _Output[frameCoord] = payload.color;
 }

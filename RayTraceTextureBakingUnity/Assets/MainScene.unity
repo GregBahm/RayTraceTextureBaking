@@ -399,7 +399,6 @@ GameObject:
   m_Component:
   - component: {fileID: 511380448}
   - component: {fileID: 511380447}
-  - component: {fileID: 511380449}
   m_Layer: 0
   m_Name: MainScript
   m_TagString: Untagged
@@ -425,7 +424,8 @@ MonoBehaviour:
   tracingShader: {fileID: 4807578003741378534, guid: e0dcd5c7d0233b54b80e94290c6dcb15,
     type: 3}
   theCamera: {fileID: 1823688466}
-  renderTex: {fileID: 8400000, guid: 14dc873d11401604fa00338e806d9518, type: 2}
+  renderTex: {fileID: 0}
+  outputDisplayMat: {fileID: 2100000, guid: 84557dfe0bb31ec4fb5d73fafda3903e, type: 2}
 --- !u!4 &511380448
 Transform:
   m_ObjectHideFlags: 0
@@ -441,18 +441,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &511380449
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 511380446}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c8c0c73b852020949ae041441cb71203, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &603275559
 GameObject:
   m_ObjectHideFlags: 0
@@ -466,7 +454,7 @@ GameObject:
   - component: {fileID: 603275561}
   - component: {fileID: 603275560}
   m_Layer: 0
-  m_Name: Quad
+  m_Name: OutputQuad
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -544,7 +532,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 603275559}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.901, y: 0.633, z: 1.972}
+  m_LocalPosition: {x: -3.505, y: 0.633, z: 1.972}
   m_LocalScale: {x: 5.499, y: 5.499, z: 5.499}
   m_ConstrainProportionsScale: 0
   m_Children: []

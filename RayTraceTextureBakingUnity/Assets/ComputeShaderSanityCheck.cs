@@ -4,15 +4,26 @@ using UnityEngine;
 
 public class ComputeShaderSanityCheck : MonoBehaviour
 {
-    // Start is called before the first frame update
+    [SerializeField]
+    private ComputeShader computeShader;
+
+    [SerializeField]
+    private RenderTexture renderTex;
+
+    int kernel;
+
     void Start()
     {
-        
+        renderTex = new RenderTexture(256, 256, 16, RenderTextureFormat.ARGBFloat);
+        renderTex.enableRandomWrite = true;
+        renderTex.Create();
+
+        kernel = computeShader.FindKernel("CSMain");
     }
 
-    // Update is called once per frame
     void Update()
     {
-        
+        computeShader.SetTexture(kernel, "Result", renderTex);
+        computeShader.Dispatch(kernel, renderTex.width / 8, renderTex.height / 8, 1);
     }
 }
