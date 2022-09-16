@@ -426,6 +426,11 @@ MonoBehaviour:
   theCamera: {fileID: 1823688466}
   renderTex: {fileID: 0}
   outputDisplayMat: {fileID: 2100000, guid: 84557dfe0bb31ec4fb5d73fafda3903e, type: 2}
+  owenScrambled256Tex: {fileID: 2800000, guid: 2a205358e67aa9e4a94a128ac9362f4e, type: 3}
+  scramblingTile256SPP: {fileID: 2800000, guid: 882fb55d7b3e7c94598a318df9376e32,
+    type: 3}
+  rankingTile256SPP: {fileID: 2800000, guid: 1e604a266c415cd46b36d97cd9220aa8, type: 3}
+  scramblingTex: {fileID: 2800000, guid: bf25cd6288e2c8d43854a61a8496a830, type: 3}
 --- !u!4 &511380448
 Transform:
   m_ObjectHideFlags: 0

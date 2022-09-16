@@ -1,56 +1,196 @@
-#include "UnityShaderVariables.cginc"
+// We need N bounces given that we want to support complex light paths
+#pragma max_recursion_depth 11
 
-#pragma max_recursion_depth 1
+// HDRP include
+#define SHADER_TARGET 50
 
-// Input
-RaytracingAccelerationStructure _SceneAccelStruct;
-float _Zoom; //Mathf.Tan(Mathf.Deg2Rad * Camera.main.fieldOfView * 0.5f)
+// Include and define the shader pass (Required for light cluster code)
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/ShaderPass/ShaderPass.cs.hlsl"
+#define SHADERPASS SHADERPASS_PATH_TRACING
 
-// Output
-RWTexture2D<float4> _Output;
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Sampling/Sampling.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Builtin/BuiltinData.hlsl"
 
-struct RayPayload
-{
-    float4 color;
-};
+// Ray tracing includes
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/Raytracing/Shaders/ShaderVariablesRaytracing.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/Raytracing/Shaders/Common/AtmosphericScatteringRayTracing.hlsl"
+
+// We need this for the potential volumetric integration on camera misses
+#define HAS_LIGHTLOOP
+
+// Path tracing includes
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/PathTracing/Shaders/PathTracingIntersection.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/PathTracing/Shaders/PathTracingSampling.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/PathTracing/Shaders/PathTracingVolume.hlsl"
+
+// Input(s)
+float4x4 _PixelCoordToViewDirWS;
+int      _RaytracingCameraSkyEnabled;
+float4   _RaytracingCameraClearColor;
+TEXTURE2D_X(_SkyCameraTexture);
+float4   _PathTracingDoFParameters;    // x: aperture radius, y: focus distance, zw: unused
+float4   _PathTracingTilingParameters; // xy: tile count, zw: current tile index
+
+// Output(s)
+RW_TEXTURE2D_X(float4, _FrameTexture);
 
 [shader("miss")]
-void MainMissShader(inout RayPayload payload : SV_RayPayload)
+void MissCamera(inout PathIntersection pathIntersection : SV_RayPayload)
 {
-    payload.color = float4(0, 0, 0, 1);
+    // In indirect-only mode, it makes more sense to return a null value
+    if (_RaytracingMinRecursion > 1)
+    {
+        pathIntersection.value = 0.0;
+        pathIntersection.alpha = 0.0;
+        return;
+    }
+
+    bool skyEnabled = _EnvLightSkyEnabled && _RaytracingCameraSkyEnabled;
+    float4 missColor = skyEnabled ? _SkyCameraTexture[COORD_TEXTURE2D_X(pathIntersection.pixelCoord)] : _RaytracingCameraClearColor * GetInverseCurrentExposureMultiplier();
+    pathIntersection.value = missColor.rgb;
+    pathIntersection.alpha = missColor.a;
+
+    ApplyFogAttenuation(WorldRayOrigin(), WorldRayDirection(), pathIntersection.value, pathIntersection.alpha);
+
+    if (_EnableVolumetricFog)
+    {
+        float3 lightPosition, envValue = pathIntersection.value;
+
+        // Generate a 4D unit-square sample for this depth, from our QMC sequence
+        float4 inputSample = GetSample4D(pathIntersection.pixelCoord, _RaytracingSampleIndex, 0);
+
+        // Compute volumetric scattering
+        pathIntersection.value = 0.0;
+        pathIntersection.t = FLT_MAX;
+        float pdf = 1.0;
+        bool sampleLocalLights;
+        if (SampleVolumeScatteringPosition(pathIntersection.pixelCoord, inputSample.w, pathIntersection.t, pdf, sampleLocalLights, lightPosition))
+        {
+            ComputeVolumeScattering(pathIntersection, inputSample.xyz, sampleLocalLights, lightPosition);
+
+            // Apply the pdf
+            pathIntersection.value /= pdf;
+
+            // Apply volumetric attenuation
+            ApplyFogAttenuation(WorldRayOrigin(), WorldRayDirection(), pathIntersection.t, pathIntersection.value, false);
+        }
+
+        // Reinject the environment value
+        pathIntersection.value += envValue;
+    }
+}
+
+[shader("miss")]
+void MissLight(inout PathIntersection pathIntersection : SV_RayPayload)
+{
+}
+
+[shader("miss")]
+void MissMaterial(inout PathIntersection pathIntersection : SV_RayPayload)
+{
+    if ((_RaytracingMaxRecursion - pathIntersection.remainingDepth) < _RaytracingMinRecursion)
+    {
+        pathIntersection.value = 0.0;
+        return;
+    }
+
+    pathIntersection.value = _EnvLightSkyEnabled ? SampleSkyTexture(WorldRayDirection(), 0.0, 0).rgb : 0.0;
+    ApplyFogAttenuation(WorldRayOrigin(), WorldRayDirection(), pathIntersection.value);
+}
+
+void ApplyDepthOfField(uint2 pixelCoord, float dotDirection, inout float3 origin, inout float3 direction)
+{
+     // Check aperture radius
+    if (_PathTracingDoFParameters.x <= 0.0)
+        return;
+
+    // Sample the lens aperture using the next available dimensions
+    // (we use 40 for path tracing, 2 for sub-pixel jittering, 64 for SSS -> 106, 107)
+    float2 uv = _PathTracingDoFParameters.x * SampleDiskUniform(GetSample(pixelCoord, _RaytracingSampleIndex, 106),
+                                                                GetSample(pixelCoord, _RaytracingSampleIndex, 107));
+
+    // Compute the focus point by intersecting the pinhole ray with the focus plane
+    float t = _PathTracingDoFParameters.y / dotDirection;
+    float3 focusPoint = origin + t * direction;
+
+    // Compute the new ray origin (_ViewMatrix[0] = right, _ViewMatrix[1] = up)
+    origin += _ViewMatrix[0].xyz * uv.x + _ViewMatrix[1].xyz * uv.y;
+
+    // The new ray direction should pass through the focus point
+    direction = normalize(focusPoint - origin);
 }
 
 [shader("raygeneration")]
-void MainRayGenShader()
+void RayGen()
 {
-    uint2 launchIndex = DispatchRaysIndex().xy;
-    uint2 launchDim = DispatchRaysDimensions().xy;
+    // Get the current pixel coordinates
+    uint2 pixelCoord = DispatchRaysIndex().xy;
 
-    float2 frameCoord = float2(launchIndex.x, launchDim.y - launchIndex.y - 1) + float2(0.5, 0.5);
+    // Get the current tile coordinates (for interleaved tiling) and update pixel coordinates accordingly
+    uint2 tileCount = uint2(_PathTracingTilingParameters.xy);
+    uint2 tileIndex = uint2(_PathTracingTilingParameters.zw);
+    uint2 tiledPixelCoord = pixelCoord * tileCount + tileIndex;
 
-    float2 ndcCoords = frameCoord / float2(launchDim.x - 1, launchDim.y - 1);
+    // Jitter them (we use 4x10 dimensions of our sequence during path tracing atm, so pick the next available ones)
+    float4 jitteredPixelCoord = float4(pixelCoord, 1.0, 1.0);
+    jitteredPixelCoord.x += GetSample(tiledPixelCoord, _RaytracingSampleIndex, 40) / tileCount.x;
+    jitteredPixelCoord.y += GetSample(tiledPixelCoord, _RaytracingSampleIndex, 41) / tileCount.y;
 
-    ndcCoords = ndcCoords * 2 - float2(1, 1);
-    ndcCoords = ndcCoords * _Zoom;
-
-    float aspectRatio = (float)launchDim.x / (float)launchDim.y;
-
-    float3 viewDirection = normalize(float3(ndcCoords.x * aspectRatio, ndcCoords.y, 1));
-
-    // Rotate the ray from view space to world space.
-    float3 rayDirection = normalize(mul((float3x3)unity_CameraToWorld, viewDirection));
-
+    // Create the ray descriptor for this pixel
     RayDesc ray;
-    ray.Origin    = _WorldSpaceCameraPos;
-    ray.Direction = rayDirection;
-    ray.TMin      = 0.0f;
-    ray.TMax      = 1000.0f;
+    ray.TMin = _RaytracingCameraNearPlane;
+    ray.TMax = FLT_INF;
 
-    RayPayload payload;
-    payload.color = float4(1, 1, 1, 1);
+    // We need the camera forward direction in both types of projection
+    float3 cameraDirection = GetViewForwardDir();
 
-    uint missShaderIndex = 0;
-    TraceRay(_SceneAccelStruct, 0, 0xFF, 0, 1, missShaderIndex, ray, payload);
+    // Compute the ray's origin and direction, for either perspective or orthographic projection
+    if (IsPerspectiveProjection())
+    {
+        ray.Origin = GetPrimaryCameraPosition();
+        ray.Direction = -normalize(mul(jitteredPixelCoord, _PixelCoordToViewDirWS).xyz);
 
-    _Output[frameCoord] = payload.color;
+        // Use planar clipping, to match rasterization
+        float dotDirection = dot(cameraDirection, ray.Direction);
+        ray.TMin /= dotDirection;
+
+        ApplyDepthOfField(tiledPixelCoord, dotDirection, ray.Origin, ray.Direction);
+    }
+    else // Orthographic projection
+    {
+        uint2 pixelResolution = DispatchRaysDimensions().xy;
+        float4 screenCoord = float4(2.0 * jitteredPixelCoord.x / pixelResolution.x - 1.0,
+                                    -2.0 * jitteredPixelCoord.y / pixelResolution.y + 1.0,
+                                    0.0, 0.0);
+
+        ray.Origin = mul(_InvViewProjMatrix, screenCoord).xyz;
+        ray.Direction = cameraDirection;
+    }
+
+    // Create and init the PathIntersection structure for this pixel
+    PathIntersection pathIntersection;
+    pathIntersection.value = 1.0;
+    pathIntersection.alpha = 1.0;
+    pathIntersection.remainingDepth = _RaytracingMaxRecursion;
+    pathIntersection.pixelCoord = tiledPixelCoord;
+    pathIntersection.maxRoughness = 0.0;
+
+    // In order to achieve filtering for the textures, we need to compute the spread angle of the pixel
+    pathIntersection.cone.spreadAngle = _RaytracingPixelSpreadAngle / min(tileCount.x, tileCount.y);
+    pathIntersection.cone.width = 0.0;
+
+    // Evaluate the ray intersection
+    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, RAYTRACINGRENDERERFLAG_PATH_TRACING, 0, 1, 0, ray, pathIntersection);
+
+    _FrameTexture[COORD_TEXTURE2D_X(pixelCoord)] = float4(pathIntersection.value, pathIntersection.alpha);
+}
+
+// This should never be called, return magenta just in case
+[shader("closesthit")]
+void ClosestHit(inout PathIntersection pathIntersection : SV_RayPayload, AttributeData attributeData : SV_IntersectionAttributes)
+{
+    pathIntersection.value = float3(1.0, 0.0, 0.5);
 }
