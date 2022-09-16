@@ -58,3 +58,9 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+RayTraceTextureBakingUnity/Library
+RayTraceTextureBakingUnity/Temp
+RayTraceTextureBakingUnity/UserSettings
+*.vsconfig
+RayTraceTextureBakingUnity/obj
+RayTraceTextureBakingUnity/Logs
