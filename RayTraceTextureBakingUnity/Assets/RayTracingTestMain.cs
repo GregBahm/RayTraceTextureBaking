@@ -35,8 +35,6 @@ public class RayTracingTestMain : MonoBehaviour
     [SerializeField]
     public Texture2D scramblingTex;
 
-    RenderGraph renderGraph;
-
     void Start()
     {
         renderTex = CreateOutputTexture();
@@ -63,7 +61,6 @@ public class RayTracingTestMain : MonoBehaviour
 
     private void OnDestroy()
     {
-        renderGraph.Cleanup();
         renderTex.Release();
     }
 
@@ -72,6 +69,7 @@ public class RayTracingTestMain : MonoBehaviour
         List<RenderGraph> graphs = RenderGraph.GetRegisteredRenderGraphs();
         outputDisplayMat.SetTexture("_UnlitColorMap", renderTex);
 
+        tracingShader.SetShaderPass("PathTracingDXR");
         tracingShader.SetAccelerationStructure("_RaytracingAccelerationStructure", accelerationStructure);
 
         //tracingShader.SetTexture("_OwenScrambledTexture", owenScrambled256Tex);

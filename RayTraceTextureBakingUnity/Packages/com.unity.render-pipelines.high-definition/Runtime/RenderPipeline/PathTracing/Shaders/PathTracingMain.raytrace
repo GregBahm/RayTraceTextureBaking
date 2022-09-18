@@ -183,7 +183,16 @@ void RayGen()
     pathIntersection.cone.width = 0.0;
 
     // Evaluate the ray intersection
-    TraceRay(_RaytracingAccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, RAYTRACINGRENDERERFLAG_PATH_TRACING, 0, 1, 0, ray, pathIntersection);
+    TraceRay(
+            _RaytracingAccelerationStructure,   // Acceleration Structure
+            RAY_FLAG_CULL_BACK_FACING_TRIANGLES,// RayFlags 
+            RAYTRACINGRENDERERFLAG_PATH_TRACING,// Instance Inclusion Mask (wut?)
+            0,                                  // RayContributionToHitGroupIndex
+            1,                                  // MultiplierForGeometryContributionToHitGroupIndex
+            0,                                  // MissShaderIndex
+            ray,                                // Ray
+            pathIntersection                    // Payload
+        );
 
     _FrameTexture[COORD_TEXTURE2D_X(pixelCoord)] = float4(pathIntersection.value, pathIntersection.alpha);
 }
