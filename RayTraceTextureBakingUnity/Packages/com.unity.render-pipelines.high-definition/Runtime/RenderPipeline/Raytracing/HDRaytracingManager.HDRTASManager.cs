@@ -225,6 +225,11 @@ namespace UnityEngine.Rendering.HighDefinition
                 ShO_CT.layerMask = parameters.ptLayerMask;
                 ShT_CT.layerMask = parameters.ptLayerMask;
             }
+            if(parameters.textureBaking)
+            {
+                ShO_CT.layerMask = parameters.textureBakingLayerMask;
+                ShT_CT.layerMask = parameters.textureBakingLayerMask;
+            }
 
             if (parameters.shadows || parameters.pathTracing)
             {
@@ -262,6 +267,12 @@ namespace UnityEngine.Rendering.HighDefinition
             if (parameters.pathTracing)
             {
                 PT_CT.layerMask = parameters.ptLayerMask;
+                instanceTestArray.Add(PT_CT);
+            }
+
+            if(parameters.textureBaking)
+            {
+                PT_CT.layerMask = parameters.textureBakingLayerMask;
                 instanceTestArray.Add(PT_CT);
             }
 

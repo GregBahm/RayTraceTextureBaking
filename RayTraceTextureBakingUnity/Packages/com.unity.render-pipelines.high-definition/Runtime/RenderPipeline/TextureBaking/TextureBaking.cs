@@ -258,7 +258,7 @@ namespace UnityEngine.Rendering.HighDefinition
             return new Vector4(apertureRadius, focusDistance, 0.0f, 0.0f);
         }
 
-        TextureHandle RenderTextureBaking(RenderGraph renderGraph, HDCamera hdCamera, in CameraData cameraData, TextureHandle pathTracingBuffer, TextureHandle skyBuffer)
+        TextureHandle RenderTextureBaking(RenderGraph renderGraph, HDCamera hdCamera, in CameraData cameraData, TextureHandle textureBakingBuffer, TextureHandle skyBuffer)
         {
             using (var builder = renderGraph.AddRenderPass<RenderTextureBakingData>("Render Texture Baking", out var passData))
             {
@@ -291,7 +291,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 passData.shaderVariablesRaytracingCB._RaytracingIntensityClamp = m_TextureBakingSettings.maximumIntensity.value;
                 passData.shaderVariablesRaytracingCB._RaytracingSampleIndex = (int)cameraData.currentIteration;
 
-                passData.output = builder.WriteTexture(pathTracingBuffer);
+                passData.output = builder.WriteTexture(textureBakingBuffer);
                 passData.sky = builder.ReadTexture(skyBuffer);
 
                 builder.SetRenderFunc(
@@ -331,6 +331,7 @@ namespace UnityEngine.Rendering.HighDefinition
 #endif
                         // Run the computation
                         ctx.cmd.DispatchRays(data.textureBakingShader, "RayGen", (uint)data.width, (uint)data.height, 1);
+                        //ctx.cmd.SetGlobalTexture("_GregsBakedTexture", data.output);
                     });
 
                 return passData.output;
@@ -367,7 +368,7 @@ namespace UnityEngine.Rendering.HighDefinition
             }
         }
 
-        TextureHandle RenderTextureBaking(RenderGraph renderGraph, HDCamera hdCamera, TextureHandle colorBuffer)
+        TextureHandle RenderTextureBaking(RenderGraph renderGraph, HDCamera hdCamera, TextureHandle textureBakeBuffer)
         {
             RayTracingShader textureBakeShader = m_GlobalSettings.renderPipelineRayTracingResources.textureBaking;
             m_TextureBakingSettings = hdCamera.volumeStack.GetComponent<TextureBaking>();
@@ -421,9 +422,9 @@ namespace UnityEngine.Rendering.HighDefinition
                 RenderTextureBaking(m_RenderGraph, hdCamera, camData, m_FrameTexture, m_SkyTexture);
             }
 
-            RenderAccumulation(m_RenderGraph, hdCamera, m_FrameTexture, colorBuffer, true);
+            RenderAccumulation(m_RenderGraph, hdCamera, m_FrameTexture, textureBakeBuffer, true);
 
-            return colorBuffer;
+            return textureBakeBuffer;
         }
     }
 }
