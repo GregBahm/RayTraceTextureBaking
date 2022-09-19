@@ -59,6 +59,14 @@ namespace UnityEngine.Rendering.HighDefinition
         /// </summary>
         public int ptLayerMask;
         /// <summary>
+        /// Specified if texture baking is active.
+        /// </summary>
+        public bool textureBaking;
+        /// <summary>
+        /// Specified the layer mask that will be used to evaluate textureBaking.
+        /// </summary>
+        public int textureBakingLayerMask;
+        /// <summary>
         /// Specified if at least one ray tracing effect is enabled.
         /// </summary>
         public bool rayTracingRequired;

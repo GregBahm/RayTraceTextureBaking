@@ -43,7 +43,16 @@ void RayGen()
     RayPayload payload;
     payload.color = float4(1, 1, 1, 1);
     uint missShaderIndex = 0;
-    TraceRay(_RaytracingAccelerationStructure, 0, 0xFF, 0, 1, missShaderIndex, ray, payload);
+    TraceRay(
+        _RaytracingAccelerationStructure, // Acceleration Structure
+        0,                                // RayFlags 
+        0xFF,                             // Instance Inclusion Mask (wut?)
+        0,                                // RayContributionToHitGroupIndex
+        1,                                // MultiplierForGeometryContributionToHitGroupIndex
+        missShaderIndex,                  // MissShaderIndex
+        ray,                              // Ray
+        payload                           // Payload
+        );
     _Output[frameCoord] = payload.color;
 }
 

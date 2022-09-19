@@ -40,9 +40,7 @@ MonoBehaviour:
     type: 3}
   subSurfaceRayTracingCS: {fileID: 7200000, guid: 4e5684a8dba46fe42a47642f9b0a6b89,
     type: 3}
-  temporalFilterCS: {fileID: 7200000, guid: 741979ff70f7bd6489fbcb464280ecff, type: 3}
   simpleDenoiserCS: {fileID: 7200000, guid: 74a980f1da9a4f842996035350fe756c, type: 3}
-  diffuseDenoiserCS: {fileID: 7200000, guid: b4ed2382141619f40af1f743a84ccaea, type: 3}
   reflectionDenoiserCS: {fileID: 7200000, guid: 1b12fb238086d0f49983b4aa72768349,
     type: 3}
   diffuseShadowDenoiserCS: {fileID: 7200000, guid: 9af806eab5889a74dad838edc9b07d07,
@@ -52,6 +50,8 @@ MonoBehaviour:
   deferredRaytracingCS: {fileID: 7200000, guid: 6e5ef632062bc484f812c7976f450ed1,
     type: 3}
   pathTracing: {fileID: 4807578003741378534, guid: c4f4525a058009a409fea974f9ad8d03,
+    type: 3}
+  textureBaking: {fileID: 4807578003741378534, guid: 383e51b3794930846b100bd00ea7d444,
     type: 3}
   rayMarchingCS: {fileID: 7200000, guid: 78d9a89700295a4418d0921bf27e1857, type: 3}
   rayBinningCS: {fileID: 7200000, guid: cddcb515ffe9a914893d6d8fc1d85454, type: 3}

@@ -461,6 +461,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 InitRaytracingDeferred();
                 InitRecursiveRenderer();
                 InitPathTracing(m_RenderGraph);
+                InitTextureBaking(m_RenderGraph);
                 InitRayTracingAmbientOcclusion();
             }
 

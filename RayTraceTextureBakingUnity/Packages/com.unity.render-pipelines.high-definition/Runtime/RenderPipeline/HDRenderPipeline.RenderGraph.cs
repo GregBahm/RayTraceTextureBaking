@@ -145,6 +145,13 @@ namespace UnityEngine.Rendering.HighDefinition
                     resolveVirtualTextureFeedback = false;
 #endif
                 }
+                else if (hdCamera.frameSettings.IsEnabled(FrameSettingsField.RayTracing) && hdCamera.volumeStack.GetComponent<TextureBaking>().enable.value && hdCamera.camera.cameraType != CameraType.Preview && GetRayTracingState() && GetRayTracingClusterState())
+                {
+                    if (hdCamera.viewCount == 1)
+                    {
+                        colorBuffer = RenderTextureBaking(m_RenderGraph, hdCamera, colorBuffer);
+                    }
+                }
                 else
                 {
                     gpuLightListOutput = BuildGPULightList(m_RenderGraph, hdCamera, m_TileAndClusterData, m_TotalLightCount, ref m_ShaderVariablesLightListCB, prepassOutput.depthBuffer, prepassOutput.stencilBuffer, prepassOutput.gbuffer);
@@ -261,6 +268,16 @@ namespace UnityEngine.Rendering.HighDefinition
                     // Render gizmos that should be affected by post processes
                     RenderGizmos(m_RenderGraph, hdCamera, GizmoSubset.PreImageEffects);
                 }
+
+                //************************************* Come on down to Greg Town
+                //if (hdCamera.frameSettings.IsEnabled(FrameSettingsField.RayTracing) && hdCamera.volumeStack.GetComponent<TextureBaking>().enable.value && hdCamera.camera.cameraType != CameraType.Preview && GetRayTracingState() && GetRayTracingClusterState())
+                //{
+                //    if (hdCamera.viewCount == 1)
+                //    {
+                //        colorBuffer = RenderTextureBaking(m_RenderGraph, hdCamera, colorBuffer);
+                //    }
+                //}
+                //************************************* Now leaving Greg Town
 
 #if ENABLE_VIRTUALTEXTURES
                 // Note: This pass rely on availability of vtFeedbackBuffer buffer (i.e it need to be write before we read it here)

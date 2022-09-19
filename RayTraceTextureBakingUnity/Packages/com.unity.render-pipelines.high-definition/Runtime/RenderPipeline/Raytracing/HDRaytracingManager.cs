@@ -499,10 +499,15 @@ namespace UnityEngine.Rendering.HighDefinition
             parameters.pathTracing = pathTracingSettings.enable.value;
             parameters.ptLayerMask = pathTracingSettings.layerMask.value;
 
+            // Aggregate the texture baking parameters
+            TextureBaking texturBakingSettings = hdCamera.volumeStack.GetComponent<TextureBaking>();
+            parameters.textureBaking = texturBakingSettings.enable.value;
+            parameters.textureBakingLayerMask = texturBakingSettings.layerMask.value;
+
             // We need to check if at least one effect will require the acceleration structure
             parameters.rayTracingRequired = parameters.ambientOcclusion || parameters.reflections
                 || parameters.globalIllumination || parameters.recursiveRendering || parameters.subSurface
-                || parameters.pathTracing || parameters.shadows;
+                || parameters.pathTracing || parameters.shadows || parameters.textureBaking;
 
             // Return the result
             return parameters;
@@ -548,7 +553,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 RayTracingInstanceCullingResults cullingResults = m_RTASManager.Cull(hdCamera, effectParameters);
 
                 // Update the material dirtiness for the PT
-                if (effectParameters.pathTracing)
+                if (effectParameters.pathTracing || effectParameters.textureBaking)
                 {
                     m_RTASManager.transformsDirty |= cullingResults.transformsChanged;
                     for (int i = 0; i < cullingResults.materialsCRC.Length; i++)
@@ -598,14 +603,16 @@ namespace UnityEngine.Rendering.HighDefinition
             GlobalIllumination giSettings = hdCamera.volumeStack.GetComponent<GlobalIllumination>();
             RecursiveRendering recursiveSettings = hdCamera.volumeStack.GetComponent<RecursiveRendering>();
             PathTracing pathTracingSettings = hdCamera.volumeStack.GetComponent<PathTracing>();
+            TextureBaking textureBakingSettings = hdCamera.volumeStack.GetComponent<TextureBaking>();
             SubSurfaceScattering subSurface = hdCamera.volumeStack.GetComponent<SubSurfaceScattering>();
 
-            return (m_ValidRayTracingState &&
+            return m_ValidRayTracingState &&
                 (ScreenSpaceReflection.RayTracingActive(reflSettings)
                     || GlobalIllumination.RayTracingActive(giSettings)
                     || recursiveSettings.enable.value
                     || pathTracingSettings.enable.value
-                    || subSurface.rayTracing.value));
+                    || textureBakingSettings.enable.value
+                    || subSurface.rayTracing.value);
         }
 
         internal void CullForRayTracing(CommandBuffer cmd, HDCamera hdCamera)
